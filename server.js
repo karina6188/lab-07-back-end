@@ -1,80 +1,102 @@
 'use strict';
-
+//server
 const express = require('express');
 const cors = require('cors');
-const app = express();
-app.use(cors());
+const superAgent = require('superagent');
+
 require('dotenv').config();
 
+const app = express();
+
+app.use(cors());
+const PORT= process.env.PORT || 3000
+
+//error helper function
 function Error(err) {
   this.status = 500;
   this.responseText = 'Sorry, something went wrong.';
-  this.error = err;
+  // this.error = err;
 }
 
-// Location
-
-app.get('/location', (request, response) => {
-  try {
-    let searchQuery = request.query.data;
-    const geoDataResults = require('./data/geo.json');
-
-    const locations = new Location(searchQuery, geoDataResults);
-
-    response.status(200).send(locations);
-  }
-  catch (err) {
-    console.error(err);
-    const error = new Error(err);
-    response.status(500).send(error);
-  }
-});
-
-function Location(searchQuery, geoDataResults) {
+//getting information from geodata reulsts
+function Location(searchQuery, formatted_address, lat, long) {
   this.search_query = searchQuery;
-  this.formatted_query = geoDataResults.results[0].formatted_address;
-  this.latitude = geoDataResults.results[0].geometry.location.lat;
-  this.longitude = geoDataResults.results[0].geometry.location.lng;
+  this.formatted_query = formatted_address;
+  this.latitude = lat;
+  this.longitude = long;
 }
+// Location- get data
+app.get('/location', getLocation);
+
+function getLocation(searchQuery, request, response){
+  let geocodeurl = `https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=${process.env.GOOGLE}`
+  superAgent.get(geocodeurl)
+    .then(responsefromAgent => {
+      console.log(responsefromAgent);
+      // const formatted_address = responsefromAgent.body.results[0].formatted_address;
+      // const lat = responsefromAgent.body.results[0].geometry.location.lat;
+      // const long = responsefromAgent.body.results[0].geometry.location.lng;
+      // const location = new Location(searchQuery, formatted_address, lat, long)
+      response.status(200).send(location);
+    // })
+    // .catch(error => {
+    //   Error(error, response)
+    // })
+    })
+}
+
+//Location constructor object
 
 
 // Weather
 
-app.get('/weather', (request, response) => {
-  try {
-    let searchQuery = request.query.data;
-    const weatherDataResults = require('./data/darksky.json');
+// app.get('/weather', weatherData => {
 
-    const forecast = new Forecast(searchQuery, weatherDataResults);
+//   function weatherData(request, response) {
+//     let searchQuery = request.query.data;
 
-    response.status(200).send(forecast);
-  } catch (err) {
-    console.error(err);
-  }
-});
+//     let URL = `https://api.darksky.net/forecast/${process.env.DARKSKY}/${latitude},${longitude}`
+//     superAgent.get(URL)
+//       .then(data =>{
+//         let weatherDataResults = data.body.daily.data;
+//         let dailyArray = weatherDataResults.map(day => {
+//           return new Forecast(day);
+//         })
+//         response.send(weatherDataResults);
+//       })
+//       .catch(error => console.log(error));
 
-function Forecast(searchQuery, weatherDataResults) {
-  console.log(weatherDataResults);
-  const result = [];
-  weatherDataResults.daily.data.forEach(day => {
-    const obj = {};
-    obj.forecast = day.summary;
+//     const weatherDataResults = require(URL);
+//     const forecast = new Forecast(searchQuery, weatherDataResults);
 
-    const date = new Date(0);
-    date.setUTCSeconds(day.time);
-    obj.time = date.toDateString();
+//     response.status(200).send(forecast);
+//   } catch (err) {
+//     console.error(err);
+//   }
+// });
 
-    result.push(obj);
-  });
-  return result;
-}
 
-app.use('*', (request, response) => {
-  response.status(500).send('Sorry, something went wrong');
-});
+// function Forecast(searchQuery, weatherDataResults) {
+//   console.log(weatherDataResults);
+//   const result = [];
+//   weatherDataResults.daily.data.forEach(day => {
+//     const obj = {};
+//     obj.forecast = day.summary;
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`listening to ${PORT}`);
-});
+//     const date = new Date(0);
+//     date.setUTCSeconds(day.time);
+//     obj.time = date.toDateString();
 
+//     result.push(obj);
+//   });
+//   return result;
+// }
+
+
+
+// app.use('*', (request, response) => {
+//   response.status(500).send('Sorry, something went wrong');
+// });
+
+
+app.listen(PORT, () => {console.log(`listening on port ${PORT}`)});
