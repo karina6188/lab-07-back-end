@@ -11,92 +11,71 @@ const app = express();
 app.use(cors());
 const PORT= process.env.PORT || 3000
 
-//error helper function
-function Error(err) {
-  this.status = 500;
-  this.responseText = 'Sorry, something went wrong.';
-  // this.error = err;
-}
-
-//getting information from geodata reulsts
+//location constructor object
 function Location(searchQuery, formatted_address, lat, long) {
   this.search_query = searchQuery;
   this.formatted_query = formatted_address;
   this.latitude = lat;
   this.longitude = long;
 }
-// Location- get data
-app.get('/location', getLocation);
 
-function getLocation(searchQuery, request, response){
-  let geocodeurl = `https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=${process.env.GOOGLE}`
+// Location- get data
+app.get('/location', (request, response) => {
+  let searchQuery = request.query.data;
+  let geocodeurl = `https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=${process.env.GEOCODE_API_KEY}`;
+
   superAgent.get(geocodeurl)
     .then(responsefromAgent => {
-      console.log(responsefromAgent);
-      // const formatted_address = responsefromAgent.body.results[0].formatted_address;
-      // const lat = responsefromAgent.body.results[0].geometry.location.lat;
-      // const long = responsefromAgent.body.results[0].geometry.location.lng;
-      // const location = new Location(searchQuery, formatted_address, lat, long)
+      // console.log(responsefromAgent);
+      const formatted_address = responsefromAgent.body.results[0].formatted_address;
+      const lat = responsefromAgent.body.results[0].geometry.location.lat;
+      const long = responsefromAgent.body.results[0].geometry.location.lng;
+
+      const location = new Location(searchQuery, formatted_address, lat, long)
+
       response.status(200).send(location);
-    // })
-    // .catch(error => {
-    //   Error(error, response)
-    // })
     })
-}
-
-//Location constructor object
-
+    .catch(error => {
+      console.log('Something went wrong');
+    })
+})
 
 // Weather
 
-// app.get('/weather', weatherData => {
+app.get('/weather', (request, response) => {
+  let locationDataObj = request.query.data;
+  let latitude = locationDataObj.latitude;
+  let longitude = locationDataObj.longitude;
+  console.log( `${latitude}, ${longitude}`);
 
-//   function weatherData(request, response) {
-//     let searchQuery = request.query.data;
+  let URL = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${latitude},${longitude}`;
 
-//     let URL = `https://api.darksky.net/forecast/${process.env.DARKSKY}/${latitude},${longitude}`
-//     superAgent.get(URL)
-//       .then(data =>{
-//         let weatherDataResults = data.body.daily.data;
-//         let dailyArray = weatherDataResults.map(day => {
-//           return new Forecast(day);
-//         })
-//         response.send(weatherDataResults);
-//       })
-//       .catch(error => console.log(error));
+  superAgent.get(URL)
+    .then(dataFromWeather => {
+      let weatherDataResults = dataFromWeather.body.daily.data;
+      const dailyArray = weatherDataResults.map(day => new Forecast(day.summary, day.time));
+      console.log(dailyArray);
+      response.send(dailyArray);
 
-//     const weatherDataResults = require(URL);
-//     const forecast = new Forecast(searchQuery, weatherDataResults);
+    })
+    .catch(error => {
+      console.log('Something went wrong');
+    })
 
-//     response.status(200).send(forecast);
-//   } catch (err) {
-//     console.error(err);
-//   }
-// });
+});
 
 
-// function Forecast(searchQuery, weatherDataResults) {
-//   console.log(weatherDataResults);
-//   const result = [];
-//   weatherDataResults.daily.data.forEach(day => {
-//     const obj = {};
-//     obj.forecast = day.summary;
+function Forecast(summary, time) {
+  this.forecast = summary;
+  this.time = new Date(time *1000).toDateString();
 
-//     const date = new Date(0);
-//     date.setUTCSeconds(day.time);
-//     obj.time = date.toDateString();
+  // const date = new Date(0);
+  // date.setUTCSeconds(time);
+  // time = date.toDateString();
+}
 
-//     result.push(obj);
-//   });
-//   return result;
-// }
-
-
-
-// app.use('*', (request, response) => {
-//   response.status(500).send('Sorry, something went wrong');
-// });
-
+app.use('*', (request, response) => {
+  response.status(500).send('Sorry, something went wrong');
+});
 
 app.listen(PORT, () => {console.log(`listening on port ${PORT}`)});
