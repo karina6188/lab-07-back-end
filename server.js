@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 const PORT= process.env.PORT || 3000
 
-//location constructor object
+// constructor funcitons -------------------------------------------------------------------------------
 function Location(searchQuery, formatted_address, lat, long) {
   this.search_query = searchQuery;
   this.formatted_query = formatted_address;
@@ -19,14 +19,25 @@ function Location(searchQuery, formatted_address, lat, long) {
   this.longitude = long;
 }
 
-// Location- get data
+function Forecast(summary, time) {
+  this.forecast = summary;
+  this.time = new Date(time *1000).toDateString();
+}
+
+function Event(eventBriteStuff) {
+  this.link = eventBriteStuff.url;
+  this.name = eventBriteStuff.name.text;
+  this.event_date = new Date(eventBriteStuff.local).toDateString();
+  this.summary = eventBriteStuff.summary;
+}
+
+// get data from APIs--- -------------------------------------------------------------------------------
 app.get('/location', (request, response) => {
   let searchQuery = request.query.data;
   let geocodeurl = `https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=${process.env.GEOCODE_API_KEY}`;
 
   superAgent.get(geocodeurl)
     .then(responsefromAgent => {
-      // console.log(responsefromAgent);
       const formatted_address = responsefromAgent.body.results[0].formatted_address;
       const lat = responsefromAgent.body.results[0].geometry.location.lat;
       const long = responsefromAgent.body.results[0].geometry.location.lng;
@@ -40,39 +51,40 @@ app.get('/location', (request, response) => {
     })
 })
 
-// Weather
-
 app.get('/weather', (request, response) => {
   let locationDataObj = request.query.data;
   let latitude = locationDataObj.latitude;
   let longitude = locationDataObj.longitude;
-  console.log( `${latitude}, ${longitude}`);
-
   let URL = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${latitude},${longitude}`;
 
   superAgent.get(URL)
     .then(dataFromWeather => {
       let weatherDataResults = dataFromWeather.body.daily.data;
       const dailyArray = weatherDataResults.map(day => new Forecast(day.summary, day.time));
-      console.log(dailyArray);
-      response.send(dailyArray);
 
+      response.send(dailyArray);
     })
     .catch(error => {
       console.log('Something went wrong');
     })
-
 });
 
+app.get('/event', (request, response) => {
+  let locationObj = request.query.data;
+  const eventUrl = `http://www.eventbriteapi.com/v3/events/search?token=${process.env.EVENTBRITE_API_KEY}&location.address=${locationObj.formatted_address}`;
 
-function Forecast(summary, time) {
-  this.forecast = summary;
-  this.time = new Date(time *1000).toDateString();
+  console.log('LOCATION', locationObj);
+  superAgent.get(eventUrl)
+    .then(eventBriteData => {
+      console.log('THIS IS EVENT', eventBriteData);
+      const eventBriteInfo = eventBriteData.body.events.map(eventData => new Event(eventData));
 
-  // const date = new Date(0);
-  // date.setUTCSeconds(time);
-  // time = date.toDateString();
-}
+      response.send(eventBriteInfo);
+    })
+    .catch(error => {
+      console.log('Something went wrong');
+    })
+});
 
 app.use('*', (request, response) => {
   response.status(500).send('Sorry, something went wrong');
