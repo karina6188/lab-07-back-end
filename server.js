@@ -14,7 +14,7 @@ const PORT= process.env.PORT || 3000
 // constructor funcitons -------------------------------------------------------------------------------
 function Location(searchQuery, formatted_address, lat, long) {
   this.search_query = searchQuery;
-  this.formatted_query = formatted_address;
+  this.formatted_address = formatted_address;
   this.latitude = lat;
   this.longitude = long;
 }
@@ -69,14 +69,12 @@ app.get('/weather', (request, response) => {
     })
 });
 
-app.get('/event', (request, response) => {
+app.get('/events', (request, response) => {
   let locationObj = request.query.data;
   const eventUrl = `http://www.eventbriteapi.com/v3/events/search?token=${process.env.EVENTBRITE_API_KEY}&location.address=${locationObj.formatted_address}`;
 
-  console.log('LOCATION', locationObj);
   superAgent.get(eventUrl)
     .then(eventBriteData => {
-      console.log('THIS IS EVENT', eventBriteData);
       const eventBriteInfo = eventBriteData.body.events.map(eventData => new Event(eventData));
 
       response.send(eventBriteInfo);
